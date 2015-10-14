@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 # Description:       This script will run a backup uding rsync.
 #                    It keeps a copy of backup from Monday to Friday,and every first 
 #                    Sunday a Monthly copy is kept also.
@@ -9,13 +9,14 @@
 mt_point="/media/luke/bckdsk"
 logfile="/home/luke/rsync_backup.log"
 rsync_log="/home/luke/rsync.log"
-backup_dir="$mt_point/backup/test/"
+backup_dir="$mt_point/backup/tests/"
 backup_root="$mt_point/backup/"
 selection="selections.txt"
 DAY=`date +"%A"`
 DAY_week=`date +"%a" |tr '[:upper:]' '[:lower:]'`
 DAY_num=`date +"%d"`
 Month=`date +"%B"`
+err_level="0"
 ###################################################################
 
 check_space(){
@@ -29,12 +30,13 @@ if [[ $perc_used < $perc ]]
    echo "[OK]: partion mounted on $mt_point has $free_space"%" of free space">>$logfile
      else
      echo "[WARNING]: space used on partition  mounted on $mt_point is higher than $perc"%" !!!">>$logfile
+     err_level="1"
 fi
 }
 
 check_param(){
 local bool="0"
-   echo " ">>$logfile
+   echo " ">$logfile
    echo " ">>$logfile
    echo "===================================" >>$logfile
    echo "checking script parameters definitions" >>$logfile
@@ -47,7 +49,8 @@ local bool="0"
      echo "[OK]: USB disk mounted on " $mt_point>>$logfile
      else 
       echo "[ERROR]: USB disk not mounted on "$mt_point >>$logfile
-      #send_email "[ERROR]: USB disk not mounted on $mt_point"
+      err_level="2"
+      send_email $err_level
       exit 1;
  fi
  
@@ -61,7 +64,7 @@ check_space
        echo "[OK]:"$i"  present" >> $logfile
     else
        echo "[ERROR]:"$i"   not present." >> $logfile
-       #send_email "report backup:errors in path definitions"
+       err_level="2"
        bool=1
    fi
   done
@@ -71,7 +74,8 @@ check_space
      echo
     else
      echo "backup failed,please check the prameters">>$logfile
-     #send_email "report backup:backup failed,please check the prameters"
+     err_level="2"
+     send_email $err_level
      exit 1;
    fi
 }
@@ -81,10 +85,9 @@ check_for_compression_errors()
 if [ $? -ne 0 ]
   then
    echo "[ERROR]:one or more errors during backup compression" >> $logfile
-   #send_email "report backup:[ERROR]:one or more errors during backup compression"
+   err_level="1"
     else
       echo "backup ended at "`date` >>$logfile
-   #send_email "report backup:[OK]:backup finished correctly"
 fi
 }
 
@@ -93,10 +96,9 @@ check_for_rsync_errors()
 if [ $? -ne 0 ]
  then
   echo "[ERROR]:error during rsync copy of $1 folder" >> $logfile
-   #send_email "report backup:[ERROR]:error during rsync copy"
+   err_level="1"
  else
   echo "[OK]: $1 copied correctly">> $logfile
-  #send_email"report backup:[OK]:rsync copy finished correctly"
 fi
 }
 
@@ -105,7 +107,8 @@ check_folder_creation()
 if [ $? -ne 0 ]
  then
   echo "[ERROR]:error during backup folder creation" >> $logfile
-  #send_email "[ERROR]:error during backup folder creation"
+  err_level="2"
+  send_email $err_level
   exit 1;
  else
   echo "ok"
@@ -115,12 +118,24 @@ fi
 send_email()
 {
 local SendEmail="/usr/bin/sendemail"
-local From="backup@you.com"	
-local To="backup@you.com"
-local Subject="Rsync Backup"
-local Message="$1"
-local Smtp_relay="relay.smtp.some"
-$SendEmail -f $From -t $To -u $Subject -m $Message -s $Smtp_relay
+local From="test@test"	
+local To="test@test"
+local Subject="Rsync Backup [OK]"
+local Message="[OK]:backup completed correctly"
+local Smtp_relay="10.4.0.128"
+if [ "$1" -eq 2 ]
+then
+Message="[ERROR] backup failed,please check log"
+Subject="Rsync Backup [ERROR]"
+$SendEmail -f $From -t $To -u $Subject -m $Message -s $Smtp_relay -a $logfile -o tls=no
+elif [ "$1" -eq 1 ]
+then
+Message="[WARNING] backup completed with errors,please check log"
+Subject="Rsync Backup [WARNING]"
+$SendEmail -f $From -t $To -u $Subject -m $Message -s $Smtp_relay -a $logfile -o tls=no
+else
+$SendEmail -f $From -t $To -u $Subject -m $Message -s $Smtp_relay -a $logfile -o tls=no
+fi
 }
 
 do_rsync() {
@@ -180,3 +195,4 @@ fi
 
 check_param
 check_day
+send_email $err_level
