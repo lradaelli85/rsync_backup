@@ -1,0 +1,4 @@
+/home/luke/script/
+/home/luke/Documents/
+/home/luke/speedtest_cli.py
+/var/log/news/
