@@ -1,6 +1,6 @@
 #!/bin/bash
-# Description:       This script will run a backup uding rsync.
-#                    It keeps a copy of backup from Monday to Friday,and every first 
+# Description:       This script will run a backup using rsync.
+#                    It keeps a copy of backup from Monday to Friday,it keeps a weekly copy every saturday every first 
 #                    Sunday a Monthly copy is kept also.
 #  					 To send the email it requires sendemail
 #Author: Luca Radaelli <lradaelli85@users.noreply.github.com>
