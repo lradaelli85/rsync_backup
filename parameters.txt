@@ -1,0 +1,24 @@
+mt_point="/media/luke/bckdsk"
+logfile="/home/luke/rsync_backup.log"
+rsync_log="/home/luke/`date +"%d%m%Y"`-rsync.log"
+backup_dir="$mt_point/backup/test/"
+backup_root="$mt_point/backup/"
+#DAY=`date +"%A"`
+DAY="saturday"
+#DAY_week=`date +"%a" |tr '[:upper:]' '[:lower:]'`
+DAY_week="sat"
+#DAY_num=`date +"%d"`
+DAY_num="22"
+Month=`date +"%B"`
+err_level="0"
+#rsync parameters
+selection="selections.txt"
+exclude="exclude.txt"
+#rsync_param_local="-pavhrWR --exclude-from=$exclude --delete --stats --backup --suffix=`date +"%d%m%Y"`"
+#rsync_param_net="-pavzhrR --exclude-from=$exclude --delete --stats --backup --suffix=`date +"%d%m%Y"`"
+rsync_param="-pavhrWR --exclude-from=$exclude --delete --stats --backup --suffix=`date +"%d%m%Y"`" 
+#mail parameters
+SendEmail="/usr/bin/sendemail"
+From="test@test"	
+To="test@test"
+Smtp_relay="10.4.0.128"

@@ -1,27 +1,11 @@
 #!/bin/bash
-# Description:       This script will run a backup using rsync.
-#                    It keeps a copy of backup from Monday to Friday,it keeps a weekly copy every saturday every first 
+# Description:       This script will run a backup uding rsync.
+#                    It keeps a copy of backup from Monday to Friday,and every first 
 #                    Sunday a Monthly copy is kept also.
 #  					 To send the email it requires sendemail
 #Author: Luca Radaelli <lradaelli85@users.noreply.github.com>
 ##################################################################
-#inserire qui i parametri
-mt_point="/media/luke/bckdsk"
-logfile="/home/luke/rsync_backup.log"
-rsync_log="/home/luke/`date +"%d%m%Y"`-rsync.log"
-backup_dir="$mt_point/backup/test/"
-backup_root="$mt_point/backup/"
-selection="selections.txt"
-DAY=`date +"%A"`
-#DAY="saturday"
-DAY_week=`date +"%a" |tr '[:upper:]' '[:lower:]'`
-#DAY_week="sat"
-DAY_num=`date +"%d"`
-#DAY_num="22"
-Month=`date +"%B"`
-err_level="0"
-rsync_param="-pazvhrR"
-#rsync_param="-npazvhr" 
+. parameters.txt 
 ###################################################################
 
 check_space(){
@@ -39,15 +23,7 @@ if [[ $perc_used < $perc ]]
 fi
 }
 
-check_param(){
-local bool="0"
-   echo " ">$logfile
-   echo " ">>$logfile
-   echo "===================================" >>$logfile
-   echo "checking script parameters definitions" >>$logfile
-   echo " ">>$logfile
-   echo "process started at "`date` >>$logfile
-   
+check_mount(){
 #check if disk is mounted
  if  [ `grep -c $mt_point /proc/mounts` -eq  1 ]
      then
@@ -58,9 +34,23 @@ local bool="0"
       #send_email $err_level
       exit 1;
  fi
- 
-check_space
+}
+check_selections(){
+while read line
+do
+if [ -e $line ] && [ -s $line ] && [ -f $line ] || [ -d $line ]
+then
+echo "[OK]:"$line" exists" >> $logfile
+else
+       echo "[ERROR]:"$line"  does not exists." >> $logfile
+       err_level="2"
+       #send_email $err_level
+       exit 1;
+fi
+done < $selection
+}
 
+check_configurations(){
 #check if the needed folder are there
   for i in $backup_dir $backup_root $selection
   do
@@ -70,19 +60,25 @@ check_space
     else
        echo "[ERROR]:"$i"   not present." >> $logfile
        err_level="2"
-       bool=1
+       #send_email $err_level
+       exit 1; 
    fi
   done
-  
-   if [ $bool -eq "0" ]
-    then
-     echo
-    else
-     echo "backup failed,please check the prameters">>$logfile
-     err_level="2"
-     send_email $err_level
-     exit 1;
-   fi
+}
+
+
+check_param(){
+   echo " ">$logfile
+   echo " ">>$logfile
+   echo "===================================" >>$logfile
+   echo "checking script parameters definitions" >>$logfile
+   echo " ">>$logfile
+   echo "process started at "`date` >>$logfile
+   
+check_mount
+check_space
+check_selections
+check_configurations
 }
 
 check_for_compression_errors()
@@ -122,12 +118,8 @@ fi
 
 send_email()
 {
-local SendEmail="/usr/bin/sendemail"
-local From="test@test"	
-local To="test@test"
 local Subject="Rsync Backup [OK]"
 local Message="[OK]:backup completed correctly"
-local Smtp_relay="10.4.0.128"
 if [ "$1" -eq 2 ]
 then
 Message="[ERROR] backup failed,please check the logs"
@@ -150,9 +142,18 @@ if [ -e $rsync_log ]
    rm $rsync_log
 fi   
 touch $rsync_log
+if [ ! -z $2 ] && [ $2 = "daily" ]
+then
+incremental="--backup-dir=$backup_root$1"
+elif [ ! -z $2 ] && [ $2 = "weekly" ]
+then
+incremental="--backup-dir=$backup_root"weekly"/$1"
+else
+incremental="--backup-dir=$backup_root"monthly"/$1"
+fi
 while read line
 do
-rsync $rsync_param $line $backup_dir >>$rsync_log 
+rsync $rsync_param $incremental $line $backup_dir >>$rsync_log 
 check_for_rsync_errors $line
 #rsync -avzR -e "ssh -i /root/.ssh/id_rsa" root@host.local:/path/of/host.local $backup_dir
 #check_for_rsync_error
@@ -161,11 +162,15 @@ done < $selection
 
 do_backup()
 {
-do_rsync	
-rm -f $backup_root$1/backup-$1.tar.gz
+do_rsync $1	$2
+if [ ! -z $2 ] && [ $2 = "Monthly" ]
+then
+rm -f $backup_root"monthly"/$1/backup-$1.tar.gz
 echo "starting backup compression">>$logfile
-tar -pzcf $backup_root$1/backup-$1.tar.gz $backup_dir > /dev/null
-check_for_compression_errors	
+tar -pzcf $backup_root"monthly"/$1/backup-$1.tar.gz $backup_dir > /dev/null
+check_for_compression_errors
+#send_email $err_level
+fi
 }
 
 
@@ -173,13 +178,15 @@ check_day() {
 #check for monthly backup
 if [ $DAY_week = "dom" ] || [ $DAY_week = "sun" ] && [ $DAY_num -le 7 ] 
   then
-      if [ -e $backup_root$Month ]
+      if [ -e $backup_root"monthly"/$Month ]
         then
-          do_backup $Month
+          do_backup $Month Monthly
+          exit $?;
         else
-          mkdir $backup_root$Month
+          mkdir $backup_root"monthly"/$Month
           check_folder_creation
-          do_backup $Month
+          do_backup $Month Monthly          
+          exit $?;
         fi
 elif [ $DAY_week = "dom" ] || [ $DAY_week = "sun" ] && [ $DAY_num -gt 7 ]
      then
@@ -189,53 +196,63 @@ fi
 #check for weekly backup   
   if [ $DAY_week = "sat" ] || [ $DAY_week = "sab" ] && [ $DAY_num -le 7 ] 
       then
-        if [ -e $backup_root"week1" ]
+        if [ -e $backup_root"weekly"/"week1" ]
           then
-            do_backup week1
+            do_backup week1 weekly
+            exit $?;
           else
-          mkdir $backup_root$"week1"
+          mkdir $backup_root"weekly"/"week1"
           check_folder_creation
-          do_backup week1
+          do_backup week1 weekly
+          exit $?;
         fi
    elif [ $DAY_week = "sat" ] || [ $DAY_week = "sab" ] && [ $DAY_num -gt 7 ] && [ $DAY_num -le 14 ] 
           then
-          if [ -e $backup_root"week2" ]
+          if [ -e $backup_root"weekly"/"week2" ]
           then
-            do_backup week2
+            do_backup week2 weekly
+            exit $?;
           else
-          mkdir $backup_root$"week2"
+          mkdir $backup_root"weekly"/"week2"
           check_folder_creation
-          do_backup week2
+          do_backup week2 weekly
+          exit $?;
        fi
     elif [ $DAY_week = "sat" ] || [ $DAY_week = "sab" ] && [ $DAY_num -gt 14 ] && [ $DAY_num -le 21 ] 
           then
-           if [ -e $backup_root"week3" ]
+           if [ -e $backup_root"weekly"/"week3" ]
            then
-            do_backup week3
+            do_backup week3 weekly
+            exit $?;
           else
-          mkdir $backup_root$"week3"
+          mkdir $backup_root"weekly"/"week3"
           check_folder_creation
-          do_backup week3
+          do_backup week3 weekly
+          exit $?;
        fi
     elif [ $DAY_week = "sat" ] || [ $DAY_week = "sab" ] && [ $DAY_num -gt 21 ] && [ $DAY_num -le 28 ] 
           then
-          if [ -e $backup_root"week4" ]
+          if [ -e $backup_root"weekly"/"week4" ]
           then
-            do_backup week4
+            do_backup week4 weekly
+            exit $?;
           else
-          mkdir $backup_root$"week4"
+          mkdir $backup_root"weekly"/"week4"
           check_folder_creation
-          do_backup week4
+          do_backup week4 weekly
+          exit $?;
        fi
   else
 #daily backup
      if [ -e $backup_root$DAY ]
        then
-         do_backup $DAY
+         do_backup $DAY daily
+         exit $?;
          else
          mkdir $backup_root$DAY
          check_folder_creation
-         do_backup $DAY
+         do_backup $DAY daily
+         exit $?;
      fi
 fi
 }
@@ -243,4 +260,3 @@ fi
 
 check_param
 check_day
-#send_email $err_level
