@@ -1,13 +1,19 @@
 #!/bin/bash
-# Description:       This script will run a backup uding rsync.
+# Description:       This script will run a backup using rsync.
 #                    It keeps a copy of backup from Monday to Friday,and every first 
 #                    Sunday a Monthly copy is kept also.
 #  					 To send the email it requires sendemail
 #Author: Luca Radaelli <lradaelli85@users.noreply.github.com>
 ##################################################################
-. parameters.txt 
+. parameters.conf 
 ###################################################################
 
+mail_report(){
+	if	[ $email_report = yes ]
+	 then
+	  send_email $1
+	fi
+}
 check_space(){
 local perc="75"
 local perc_used=`df -h |grep $mt_point |awk '{print $5}'|tr -d "%"`
@@ -31,7 +37,7 @@ check_mount(){
      else 
       echo "[ERROR]: USB disk not mounted on "$mt_point >>$logfile
       err_level="2"
-      #send_email $err_level
+      mail_report $err_level
       exit 1;
  fi
 }
@@ -44,7 +50,7 @@ echo "[OK]:"$line" exists" >> $logfile
 else
        echo "[ERROR]:"$line"  does not exists." >> $logfile
        err_level="2"
-       #send_email $err_level
+       mail_report $err_level
        exit 1;
 fi
 done < $selection
@@ -60,7 +66,7 @@ check_configurations(){
     else
        echo "[ERROR]:"$i"   not present." >> $logfile
        err_level="2"
-       #send_email $err_level
+       mail_report $err_level
        exit 1; 
    fi
   done
@@ -169,7 +175,7 @@ rm -f $backup_root"monthly"/$1/backup-$1.tar.gz
 echo "starting backup compression">>$logfile
 tar -pzcf $backup_root"monthly"/$1/backup-$1.tar.gz $backup_dir > /dev/null
 check_for_compression_errors
-#send_email $err_level
+mail_report $err_level
 fi
 }
 
