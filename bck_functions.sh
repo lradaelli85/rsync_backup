@@ -1,8 +1,4 @@
 #!/bin/bash
-# Description:       This script will run a backup using rsync.
-#                    It keeps a copy of backup from Monday to Friday,and every first 
-#                    Sunday a Monthly copy is kept also.
-#  					 To send the email it requires sendemail
 #Author: Luca Radaelli <lradaelli85@users.noreply.github.com>
 ##################################################################
 . parameters.conf 
@@ -66,10 +62,15 @@ check_configurations(){
     else
        echo "[ERROR]:"$i"   not present." >> $logfile
        err_level="2"
+       #mail_report $err_level
+       #exit 1; 
+   fi 
+  done
+     if [ $err_level -gt 0 ]
+       then
        mail_report $err_level
        exit 1; 
-   fi
-  done
+      fi  
 }
 
 
@@ -178,91 +179,3 @@ check_for_compression_errors
 mail_report $err_level
 fi
 }
-
-
-#check_day() {
-##check for monthly backup
-#if [ $DAY_week = "dom" ] || [ $DAY_week = "sun" ] && [ $DAY_num -le 7 ] 
-  #then
-      #if [ -e $backup_root"monthly"/$Month ]
-        #then
-          #do_backup $Month Monthly
-          #exit $?;
-        #else
-          #mkdir $backup_root"monthly"/$Month
-          #check_folder_creation
-          #do_backup $Month Monthly          
-          #exit $?;
-        #fi
-#elif [ $DAY_week = "dom" ] || [ $DAY_week = "sun" ] && [ $DAY_num -gt 7 ]
-     #then
-       #echo "not first Sunday of the Month" >> $logfile
-       #exit 0;
-#fi    
-##check for weekly backup   
-  #if [ $DAY_week = "sat" ] || [ $DAY_week = "sab" ] && [ $DAY_num -le 7 ] 
-      #then
-        #if [ -e $backup_root"weekly"/"week1" ]
-          #then
-            #do_backup week1 weekly
-            #exit $?;
-          #else
-          #mkdir $backup_root"weekly"/"week1"
-          #check_folder_creation
-          #do_backup week1 weekly
-          #exit $?;
-        #fi
-   #elif [ $DAY_week = "sat" ] || [ $DAY_week = "sab" ] && [ $DAY_num -gt 7 ] && [ $DAY_num -le 14 ] 
-          #then
-          #if [ -e $backup_root"weekly"/"week2" ]
-          #then
-            #do_backup week2 weekly
-            #exit $?;
-          #else
-          #mkdir $backup_root"weekly"/"week2"
-          #check_folder_creation
-          #do_backup week2 weekly
-          #exit $?;
-       #fi
-    #elif [ $DAY_week = "sat" ] || [ $DAY_week = "sab" ] && [ $DAY_num -gt 14 ] && [ $DAY_num -le 21 ] 
-          #then
-           #if [ -e $backup_root"weekly"/"week3" ]
-           #then
-            #do_backup week3 weekly
-            #exit $?;
-          #else
-          #mkdir $backup_root"weekly"/"week3"
-          #check_folder_creation
-          #do_backup week3 weekly
-          #exit $?;
-       #fi
-    #elif [ $DAY_week = "sat" ] || [ $DAY_week = "sab" ] && [ $DAY_num -gt 21 ] && [ $DAY_num -le 28 ] 
-          #then
-          #if [ -e $backup_root"weekly"/"week4" ]
-          #then
-            #do_backup week4 weekly
-            #exit $?;
-          #else
-          #mkdir $backup_root"weekly"/"week4"
-          #check_folder_creation
-          #do_backup week4 weekly
-          #exit $?;
-       #fi
-  #else
-##daily backup
-     #if [ -e $backup_root$DAY ]
-       #then
-         #do_backup $DAY daily
-         #exit $?;
-         #else
-         #mkdir $backup_root$DAY
-         #check_folder_creation
-         #do_backup $DAY daily
-         #exit $?;
-     #fi
-#fi
-#}
-#main
-
-#check_param
-#check_day
