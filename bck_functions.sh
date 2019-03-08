@@ -1,7 +1,7 @@
 #!/bin/bash
 #Author: Luca Radaelli <lradaelli85@users.noreply.github.com>
 ##################################################################
-. parameters.conf 
+. parameters.conf
 ###################################################################
 
 mail_report(){
@@ -27,16 +27,15 @@ fi
 
 check_mount(){
 #check if disk is mounted
- if  [ `grep -c $mt_point /proc/mounts` -eq  1 ]
-     then
-     echo "[OK]: USB disk mounted on " $mt_point>>$logfile
-     else 
-      echo "[ERROR]: USB disk not mounted on "$mt_point >>$logfile
-      err_level="2"
-      mail_report $err_level
-      exit 1;
- fi
+if  [ `grep -c $mt_point /proc/mounts` -eq  1 ]
+	then
+		echo "[OK]: disk mounted on " $mt_point>>$logfile
+		check_space
+  else
+    echo "[WARNING]: not mounted on "$mt_point". Assuming it's a folder" >>$logfile
+fi
 }
+
 check_selections(){
 while read line
 do
@@ -62,15 +61,13 @@ check_configurations(){
     else
        echo "[ERROR]:"$i"   not present." >> $logfile
        err_level="2"
-       #mail_report $err_level
-       #exit 1; 
-   fi 
+   fi
   done
      if [ $err_level -gt 0 ]
        then
        mail_report $err_level
-       exit 1; 
-      fi  
+       exit 1;
+      fi
 }
 
 
@@ -81,10 +78,9 @@ check_param(){
    echo "checking script parameters definitions" >>$logfile
    echo " ">>$logfile
    echo "process started at "`date` >>$logfile
-   
+
 check_mount
-check_space
-check_selections
+check_selections $selection
 check_configurations
 }
 
@@ -118,36 +114,36 @@ if [ $? -ne 0 ]
   err_level="2"
   mail_report $err_level
   exit 1;
- else
-  echo "ok" > /dev/null
 fi
 }
 
 send_email()
 {
-local Subject="Rsync Backup [OK]"
-local Message="[OK]:backup completed correctly"
-if [ "$1" -eq 2 ]
-then
-Message="[ERROR] backup failed,please check the logs"
-Subject="Rsync Backup [ERROR]"
-$SendEmail -f $From -t $To -u $Subject -m $Message -s $Smtp_relay -a $logfile -o tls=no
-elif [ "$1" -eq 1 ]
-then
-Message="[WARNING] backup completed with errors,please check the logs"
-Subject="Rsync Backup [WARNING]"
-$SendEmail -f $From -t $To -u $Subject -m $Message -s $Smtp_relay -a $logfile -o tls=no
-else
-$SendEmail -f $From -t $To -u $Subject -m $Message -s $Smtp_relay -a $logfile -o tls=no
+if [ -x $SendEmail ]
+	then
+		local Subject="Rsync Backup [OK]"
+		local Message="[OK]:backup completed correctly"
+		if [ "$1" -eq 2 ]
+			then
+				Message="[ERROR] backup failed,please check the logs"
+				Subject="Rsync Backup [ERROR]"
+		elif [ "$1" -eq 1 ]
+			then
+				Message="[WARNING] backup completed with errors,please check the logs"
+				Subject="Rsync Backup [WARNING]"
+		fi
+		$SendEmail -f $From -t $To -u $Subject -m $Message -s $Smtp_relay -a $logfile -o tls=no
+	else
+		echo "Can't send email, $SendEmail not present" >> $logfile
 fi
 }
 
 do_rsync() {
 echo "backup started at "`date` >>$logfile
 if [ -e $rsync_log ]
- then 
+ then
    rm $rsync_log
-fi   
+fi
 touch $rsync_log
 if [ ! -z $2 ] && [ $2 = "daily" ]
 then
@@ -160,11 +156,12 @@ incremental="--backup-dir=$backup_root"monthly"/$1"
 fi
 while read line
 do
-rsync $rsync_param $incremental $line $backup_dir >>$rsync_log 
+rsync $rsync_param $incremental $line $backup_dir >>$rsync_log
 check_for_rsync_errors $line
 #rsync -avzR -e "ssh -i /root/.ssh/id_rsa" root@host.local:/path/of/host.local $backup_dir
 #check_for_rsync_error
 done < $selection
+mail_report $err_level
 }
 
 do_backup()

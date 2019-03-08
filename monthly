@@ -1,16 +1,12 @@
 #!/bin/bash
-. parameters.conf 
+. parameters.conf
 . bck_functions.sh
 check_param
-
-      if [ -e $backup_root"monthly"/$Month ]
-        then
-          do_backup $Month Monthly
-          exit $?;
-        else
-          mkdir $backup_root"monthly"/$Month 2>/dev/null
-          check_folder_creation
-          do_backup $Month Monthly          
-          exit $?;
-        fi
- 
+if [ ! -e $backup_root"monthly"/$Month ]
+  then
+    mkdir -p $backup_root"monthly"/$Month 2>/dev/null
+    check_folder_creation
+  fi
+  do_backup $Month Monthly
+  exit $?;
+fi

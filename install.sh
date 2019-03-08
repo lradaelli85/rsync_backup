@@ -6,6 +6,9 @@ if [ `id -u` -ne 0 ]
   echo "you need root permissions"
   exit 1;
   else
+     touch $logfile
+     mkdir -p $mt_point/backup/weekly
+     mkdir -p $mt_point/backup/monthly
      echo "coping binary in folder"
      cp -va ./{daily,weekly,monthly,bck_functions.sh} $BIN_FODLER
      ln -s $CONF_DIR/parameters.conf $BIN_FODLER/parameters.conf
@@ -14,7 +17,7 @@ if [ `id -u` -ne 0 ]
         echo "$CONF_DIR does not exist,do you want to create it?[y/n]"
         read r
         case $r in
-        y)        
+        y)
         echo "creating configration folder"
         mkdir $CONF_DIR
         echo "coping configuration files in folder"
@@ -30,5 +33,5 @@ if [ `id -u` -ne 0 ]
          else
           cp -va exclude.txt LICENSE README.md selections.txt parameters.conf $CONF_DIR
      fi
-     
+
 fi
